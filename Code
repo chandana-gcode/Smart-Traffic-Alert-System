@@ -1,0 +1,79 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// Wi-Fi credentials
+const char* ssid = "Realme 9 Pro";
+const char* password = "chandu06";
+
+// Ultrasonic pins
+const int trigPin = 13;
+const int echoPin = 12;
+
+long duration;
+float distance;
+String status = "Normal";
+
+WebServer server(80);
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nConnected to WiFi");
+  Serial.print("ESP32 IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  server.begin();
+  Serial.println("Server started");
+}
+
+void loop() {
+  measureDistance();
+  server.handleClient();
+}
+
+void measureDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2;
+  Serial.print("Distance: ");
+  Serial.println(distance);
+
+  status = (distance < 10) ? "Emergency" : "Normal";
+  delay(4000);
+}
+
+void handleRoot() {
+  String html = "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Smart Traffic Monitoring</title>";
+  html += "<style>";
+  html += "div{border: solid 1px; background-color: rgb(153, 213, 183); margin-left: 40px; margin-right: 50px;}";
+  html += "img{margin-left: 620px; margin-top: 50px;}";
+  html += "h1{text-align: center;}";
+  html += "h2{color: rgb(0, 13, 255); text-align: center;}";
+  html += "h3{text-align: center; color: green;}";
+  html += "</style></head><body><div>";
+  html += "<img src='https://www.gprec.ac.in/wp-content/uploads/2019/08/GPREC.jpg' alt='image not found'>";
+  html += "<h1>Smart traffic monitoring</h1>";
+  html += "<h2>distance: " + String(distance) + "</h2>";
+  html += "<h3>status: " + status + "</h3>";
+  html += "</div></body></html>";
+
+  server.send(200, "text/html", html);
+}
